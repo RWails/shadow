@@ -99,6 +99,7 @@ void thread_flushPtrs(Thread* thread) {
     thread->flushPtrs(thread);
 }
 
+
 long thread_nativeSyscall(Thread* thread, long n, ...) {
     MAGIC_ASSERT(thread);
     utility_assert(thread->nativeSyscall);
@@ -147,4 +148,10 @@ void thread_freePluginPtr(Thread* thread, PluginPtr ptr, size_t size) {
         error("thread_nativeSyscall(munmap): %s", strerror(err));
         abort();
     }
+}
+
+Thread *thread_clone(Thread *thread, const SysCallArgs *args) {
+    MAGIC_ASSERT(thread);
+    utility_assert(thread->clone);
+    thread->clone(thread, args);
 }

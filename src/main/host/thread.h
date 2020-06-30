@@ -89,4 +89,6 @@ void thread_freePluginPtr(Thread* thread, PluginPtr ptr, size_t size);
 
 gboolean thread_isRunning(Thread* thread);
 
+Thread *thread_clone(Thread *thread, const SysCallArgs *args);
+
 #endif /* SRC_MAIN_HOST_SHD_THREAD_H_ */

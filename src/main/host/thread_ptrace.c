@@ -39,7 +39,7 @@ typedef enum {
 
 typedef struct _PendingWrite {
     PluginPtr pluginPtr;
-    void *ptr;
+    void* ptr;
     size_t n;
 } PendingWrite;
 
@@ -275,8 +275,7 @@ static void _threadptrace_enterStateSignalled(ThreadPtrace* thread,
         const uint8_t* buf = thread_getReadablePtr(
             _threadPtraceToThread(thread), (PluginPtr){eip}, 16);
         if (isRdtsc(buf)) {
-            Tsc_emulateRdtsc(&thread->tsc,
-                             &regs,
+            Tsc_emulateRdtsc(&thread->tsc, &regs,
                              worker_getCurrentTime() / SIMTIME_ONE_NANOSECOND);
             if (ptrace(PTRACE_SETREGS, thread->childPID, 0, &regs) < 0) {
                 error("ptrace: %s", g_strerror(errno));
@@ -285,8 +284,7 @@ static void _threadptrace_enterStateSignalled(ThreadPtrace* thread,
             return;
         }
         if (isRdtscp(buf)) {
-            Tsc_emulateRdtscp(&thread->tsc,
-                              &regs,
+            Tsc_emulateRdtscp(&thread->tsc, &regs,
                               worker_getCurrentTime() / SIMTIME_ONE_NANOSECOND);
             if (ptrace(PTRACE_SETREGS, thread->childPID, 0, &regs) < 0) {
                 error("ptrace: %s", g_strerror(errno));
@@ -317,7 +315,7 @@ static void _threadptrace_nextChildState(ThreadPtrace* thread) {
     }
     StopReason reason = _getStopReason(wstatus);
 
-    switch(reason.type) {
+    switch (reason.type) {
         case STOPREASON_EXITED_SIGNAL:
             debug("child %d terminated by signal %d", thread->childPID,
                   reason.exited_signal.signal);
@@ -354,7 +352,8 @@ static void _threadptrace_nextChildState(ThreadPtrace* thread) {
             return;
         case STOPREASON_CONTINUED:
         default:
-            error("Unhandled stop reason. wstatus: %x. stop type: %d", wstatus, reason.type);
+            error("Unhandled stop reason. wstatus: %x. stop type: %d", wstatus,
+                  reason.type);
             return;
     }
 }
@@ -581,9 +580,9 @@ const void* threadptrace_getReadablePtr(Thread* base, PluginPtr plugin_src,
 }
 
 int threadptrace_getReadableString(Thread* base, PluginPtr plugin_src, size_t n,
-                             const char** out_str, size_t* strlen) {
+                                   const char** out_str, size_t* strlen) {
     ThreadPtrace* thread = _threadToThreadPtrace(base);
-    char *str = g_new(char, n);
+    char* str = g_new(char, n);
     int err = 0;
 
     clearerr(thread->childMemFile);
@@ -616,7 +615,7 @@ int threadptrace_getReadableString(Thread* base, PluginPtr plugin_src, size_t n,
     utility_assert(out_str);
     *out_str = str;
     if (strlen) {
-        *strlen = count-1;
+        *strlen = count - 1;
     }
     return 0;
 }
@@ -650,8 +649,7 @@ long threadptrace_nativeSyscall(Thread* base, long n, va_list args) {
     regs.r10 = va_arg(args, long);
     regs.r8 = va_arg(args, long);
     regs.r9 = va_arg(args, long);
-    if (ptrace(PTRACE_SETREGS, thread->childPID, 0, &regs) <
-        0) {
+    if (ptrace(PTRACE_SETREGS, thread->childPID, 0, &regs) < 0) {
         error("ptrace: %s", g_strerror(errno));
         abort();
     }
@@ -683,7 +681,7 @@ long threadptrace_nativeSyscall(Thread* base, long n, va_list args) {
     // Restore the original registers, rewinding the instruction pointer so that
     // we'll re-execute the original syscall.
     regs = thread->syscall.regs;
-    regs.rip -= 2;  // Size of the syscall instruction.
+    regs.rip -= 2; // Size of the syscall instruction.
     if (ptrace(PTRACE_SETREGS, thread->childPID, 0, &regs) < 0) {
         error("ptrace: %s", g_strerror(errno));
         abort();
@@ -708,6 +706,19 @@ long threadptrace_nativeSyscall(Thread* base, long n, va_list args) {
     return syscall_result;
 }
 
+Thread* threadptrace_clone(Thread* thread, const SysCallArgs* args) {
+
+    debug("issuing native call");
+
+    thread_nativeSyscall(thread, args->number, args->args[0], args->args[1],
+                         args->args[2], args->args[3], args->args[4],
+                         args->args[5]);
+
+    debug("done issuing native call");
+
+    return NULL;
+}
+
 Thread* threadptrace_new(Host* host, Process* process, gint threadID) {
     ThreadPtrace* thread = g_new(ThreadPtrace, 1);
 
@@ -725,6 +736,7 @@ Thread* threadptrace_new(Host* host, Process* process, gint threadID) {
                          .getWriteablePtr = threadptrace_getWriteablePtr,
                          .flushPtrs = threadptrace_flushPtrs,
                          .nativeSyscall = threadptrace_nativeSyscall,
+                         .clone = threadptrace_clone,
 
                          .type_id = THREADPTRACE_TYPE_ID,
                          .referenceCount = 1},

@@ -29,6 +29,8 @@ struct _Thread {
     void (*flushPtrs)(Thread* thread);
     long (*nativeSyscall)(Thread* thread, long n, va_list args);
 
+    Thread* (*clone)(Thread *thread, const SysCallArgs *args);
+
     // For safe down-casting. Set and checked by child class.
     int type_id;
 
