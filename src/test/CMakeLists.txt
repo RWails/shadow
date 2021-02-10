@@ -37,6 +37,7 @@ set (yaml2xml "python3 ${CMAKE_SOURCE_DIR}/src/tools/convert.py yaml2xml")
 # FIXME add_subdirectory(preload)
 
 add_subdirectory(bind)
+add_subdirectory(bmark)
 add_subdirectory(clone)
 add_subdirectory(config)
 add_subdirectory(cpp)
