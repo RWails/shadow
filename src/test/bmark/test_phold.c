@@ -34,6 +34,10 @@
 
 #define PHOLD_LISTEN_PORT 8998
 
+// It is assumed that hosts in the experiment are assigned IP addresses
+// sequentially starting at this address.
+enum { BASE_IP_ADDR = 184549376 };
+
 typedef struct _PHold PHold;
 struct _PHold {
     GString* basename;
@@ -41,12 +45,8 @@ struct _PHold {
     guint64 msgload;
     guint64 cpuload;
     guint64 size;
-    GString* weightsfilepath;
 
     guint64 num_peers;
-    in_addr_t* peerIPs;
-    double* peerWeights;
-    double totalWeight;
 
     GString* hostname;
     gint listend;
@@ -147,42 +147,15 @@ static double _phold_generate_exponential(double rate) {
     return -log(u)/rate;
 }
 
-static in_addr_t _phold_lookupIP(PHold* phold, const gchar* hostname) {
-    PHOLD_ASSERT(phold);
-
-    in_addr_t ip = htonl(INADDR_NONE);
-
-    if(!hostname) {
-        return ip;
-    }
-
-    struct addrinfo* info = NULL;
-
-    /* this call does the network query */
-    gint result = getaddrinfo((gchar*) hostname, NULL, NULL, &info);
-
-    if (result == 0) {
-        ip = ((struct sockaddr_in*) (info->ai_addr))->sin_addr.s_addr;
-    } else {
-        phold_error("getaddrinfo(): returned %i host '%s' errno %i: %s",
-                result, hostname, errno, g_strerror(errno));
-    }
-
-    freeaddrinfo(info);
-
-    return ip;
-}
-
 static in_addr_t _phold_chooseNode(PHold* phold) {
     PHOLD_ASSERT(phold);
-    g_assert(phold->peerWeights);
-    g_assert(phold->peerIPs);
 
     double r = _phold_get_uniform_double();
 
     double cumulative = 0.0;
+    double normWeight = 1.0 / ((double)phold->num_peers);
+
     for (gint64 i = 0; i < phold->num_peers; i++) {
-        double normWeight = phold->peerWeights[i] / phold->totalWeight;
         cumulative += normWeight;
         if(cumulative >= r) {
             return i;
@@ -202,7 +175,7 @@ static int _phold_sendToNode(PHold* phold, gint64 peerIndex, in_port_t port, voi
     /* get node address for this message */
     struct sockaddr_in node = {0};
     node.sin_family = AF_INET;
-    node.sin_addr.s_addr = phold->peerIPs[peerIndex];
+    node.sin_addr.s_addr = htonl(1 + BASE_IP_ADDR + peerIndex);
     node.sin_port = port;
     socklen_t len = sizeof(struct sockaddr_in);
 
@@ -438,77 +411,6 @@ static int _phold_run(PHold* phold) {
     return EXIT_SUCCESS;
 }
 
-static int _phold_parseWeightsFile(PHold* phold) {
-    PHOLD_ASSERT(phold);
-
-    if (phold->peerWeights) {
-        free(phold->peerWeights);
-        phold->peerWeights = NULL;
-    }
-
-    gchar* contents = NULL;
-    gboolean success = g_file_get_contents(phold->weightsfilepath->str, &contents, NULL, NULL);
-    if(!success) {
-        phold_warning("Problem reading weights file at path %s. Check your file.",
-                phold->weightsfilepath->str);
-        return FALSE;
-    }
-
-    // Remove any trailing whitespace (such as newline at EOF inserted
-    // transparently by some editors).
-    g_strchomp(contents);
-
-    gchar** lines = g_strsplit(contents, (const gchar*) "\n", -1);
-
-    phold->num_peers = 0;
-    for(int i = 0; lines[i] != NULL; i++) {
-        phold->num_peers++;
-    }
-
-    phold_info("found %" G_GUINT64_FORMAT " weights in command", phold->num_peers);
-
-    phold->peerWeights = g_new0(double, phold->num_peers);
-
-    for (int i = 0; i < phold->num_peers; i++) {
-        phold->peerWeights[i] = g_ascii_strtod(lines[i], NULL);
-        phold_debug("found weight=%f", phold->peerWeights[i]);
-        phold->totalWeight += phold->peerWeights[i];
-    }
-
-    if(lines) {
-        g_strfreev(lines);
-    }
-    if(contents) {
-        g_free(contents);
-    }
-
-    return TRUE;
-}
-
-static int _phold_initPeerIPs(PHold* phold) {
-    PHOLD_ASSERT(phold);
-
-    if (phold->peerIPs) {
-        free(phold->peerIPs);
-    }
-    phold->peerIPs = g_new0(in_addr_t, phold->num_peers);
-
-    GString* nameBuffer = g_string_new(NULL);
-    int errcode = 0;
-
-    for (guint64 i = 0; i < phold->num_peers; i++) {
-        // shadow assigns names starting at 1 rather than 0 (peer1, peer2, etc.)
-        g_string_printf(nameBuffer, "%s%" G_GUINT64_FORMAT, phold->basename->str, i + 1);
-        phold->peerIPs[i] = _phold_lookupIP(phold, nameBuffer->str);
-        if (phold->peerIPs[i] == 0) {
-            errcode = -1;
-        }
-    }
-
-    g_string_free(nameBuffer, TRUE);
-    return errcode;
-}
-
 static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
     PHOLD_ASSERT(phold);
 
@@ -517,16 +419,16 @@ static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
      * quantity: number of test nodes running in the experiment with the same basename as this one
      * msgload: number of messages to generate when the simulation starts
      * cpuload: number of iterations of a CPU busy loop to run whenever a message is received
-     * weightsfile: path to a file containing $quantity weights according to which messages will be
-     * sent to peers */
+     */
+
     const gchar* usage =
-        "loglevel=STR basename=STR quantity=INT msgload=INT cpuload=INT weights=PATH";
+        "loglevel=STR basename=STR quantity=INT msgload=INT cpuload=INT";
 
     gchar myname[128];
     g_assert(gethostname(&myname[0], 128) == 0);
 
     int num_params_found = 0;
-#define ARGC_PEER 8
+#define ARGC_PEER 7
 
     if(argc == ARGC_PEER && argv != NULL) {
         /* argv[0] is the program name */
@@ -546,6 +448,7 @@ static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
                 num_params_found++;
             } else if(!g_ascii_strcasecmp(config[0], "quantity")) {
                 phold->quantity = g_ascii_strtoull(config[1], NULL, 10);
+                phold->num_peers = phold->quantity;
                 num_params_found++;
             } else if (!g_ascii_strcasecmp(config[0], "msgload")) {
                 phold->msgload = g_ascii_strtoull(config[1], NULL, 10);
@@ -556,9 +459,6 @@ static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
             } else if (!g_ascii_strcasecmp(config[0], "size")) {
                 phold->size = g_ascii_strtoull(config[1], NULL, 10);
                 num_params_found++;
-            } else if (!g_ascii_strcasecmp(config[0], "weightsfilepath")) {
-                phold->weightsfilepath = g_string_new(config[1]);
-                num_params_found++;
             } else {
                 phold_warning("skipping unknown config option %s=%s", config[0], config[1]);
             }
@@ -567,27 +467,7 @@ static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
         }
     }
 
-    int parse_file_success = 0;
-    if(phold->weightsfilepath && phold->weightsfilepath->str) {
-        parse_file_success = _phold_parseWeightsFile(phold);
-        if(parse_file_success) {
-            phold_info("We found %" G_GUINT64_FORMAT " weights and we have %" G_GUINT64_FORMAT
-                       " nodes",
-                       phold->num_peers, phold->quantity);
-            if (phold->num_peers > phold->quantity) {
-                phold_warning("Too many weights in the weights file!");
-                parse_file_success = FALSE;
-            } else if (phold->num_peers < phold->quantity) {
-                phold_warning("Not enough weights in the weights file!");
-                parse_file_success = FALSE;
-            }
-        }
-    }
-
-    int ip_lookup_success = parse_file_success && _phold_initPeerIPs(phold) == 0 ? 1 : 0;
-
-    if (phold->basename != NULL && phold->weightsfilepath != NULL && parse_file_success &&
-        ip_lookup_success && phold->peerWeights && num_params_found == ARGC_PEER - 1) {
+    if (phold->basename != NULL && num_params_found == ARGC_PEER - 1) {
         phold->hostname = g_string_new(&myname[0]);
 
         phold->sendbuf = g_new0(guint8, phold->size);
@@ -595,9 +475,9 @@ static gboolean _phold_parseOptions(PHold* phold, gint argc, gchar* argv[]) {
 
         phold_info("successfully parsed options for %s: "
                    "basename=%s quantity=%" G_GUINT64_FORMAT " msgload=%" G_GUINT64_FORMAT
-                   " cpuload=%" G_GUINT64_FORMAT " size=%" G_GUINT64_FORMAT " weightsfilepath=%s",
+                   " cpuload=%" G_GUINT64_FORMAT " size=%" G_GUINT64_FORMAT,
                    &myname[0], phold->basename->str, phold->quantity, phold->msgload,
-                   phold->cpuload, phold->size, phold->weightsfilepath->str);
+                   phold->cpuload, phold->size);
 
         return TRUE;
     } else {
@@ -624,15 +504,6 @@ static void _phold_free(PHold* phold) {
     }
     if(phold->basename) {
         g_string_free(phold->basename, TRUE);
-    }
-    if(phold->weightsfilepath) {
-        g_string_free(phold->weightsfilepath, TRUE);
-    }
-    if (phold->peerWeights) {
-        g_free(phold->peerWeights);
-    }
-    if (phold->peerIPs) {
-        g_free(phold->peerIPs);
     }
     if (phold->sendbuf) {
         g_free(phold->sendbuf);
