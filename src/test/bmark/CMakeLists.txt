@@ -2,12 +2,27 @@ include_directories(${GLIB_INCLUDES})
 
 enable_language(ASM)
 
-add_executable(bmark bmark_launcher.c test_phold.c sleep_loops.c asm_gettime.s)
+SET(BMARK_SOURCE
+  bmark_launcher.c
+  test_phold.c
+  sleep_loops.c
+  asm_gettime.s
+)
+
+add_executable(bmark ${BMARK_SOURCE})
 ## build the test as a dynamic executable that plugs into shadow
 # add_executable(test-phold test_phold.c)
 # 
 # ## if the test needs any libraries, link them here
 target_link_libraries(bmark ${M_LIBRARIES} ${RT_LIBRARIES} ${GLIB_LIBRARIES})
+
+target_compile_options(bmark PRIVATE -fPIC)
+
+set_target_properties(bmark PROPERTIES 
+      INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib 
+      INSTALL_RPATH_USE_LINK_PATH TRUE 
+      LINK_FLAGS "-pie -rdynamic -Wl,--no-as-needed"
+)
 
 # 
 # ## copy the file to the build test dir so that the relative path to it is correct
