@@ -7,14 +7,19 @@ SET(BMARK_SOURCE
   test_phold.c
   sleep_loops.c
   asm_gettime.s
+  pipe_test.c
+  sneaky_time.cc
 )
+
+add_library(sham_gettime SHARED sham_gettime.c)
 
 add_executable(bmark ${BMARK_SOURCE})
 ## build the test as a dynamic executable that plugs into shadow
 # add_executable(test-phold test_phold.c)
 # 
 # ## if the test needs any libraries, link them here
-target_link_libraries(bmark ${M_LIBRARIES} ${RT_LIBRARIES} ${GLIB_LIBRARIES})
+target_link_libraries(bmark ${M_LIBRARIES} ${RT_LIBRARIES} ${GLIB_LIBRARIES}
+  sham_gettime)
 
 target_compile_options(bmark PRIVATE -fPIC)
 

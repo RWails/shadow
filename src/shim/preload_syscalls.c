@@ -73,6 +73,12 @@ static long _real_syscall(long n, ...) {
     return rv;
 }
 
+void shadow_intercepted_gettime(struct timespec *t) {
+    shim_disableInterposition();
+    clock_gettime(CLOCK_REALTIME, t);
+    shim_enableInterposition();
+}
+
 static SysCallReg _shadow_syscall_event(const ShimEvent* syscall_event) {
 
     ShMemBlock ipc_blk = shim_thisThreadEventIPCBlk();
