@@ -91,6 +91,11 @@ SysCallReturn syscallhandler_clock_gettime(SysCallHandler* sys,
     struct timespec* res_timespec = process_getWriteablePtr(
         sys->process, sys->thread, args->args[1].as_ptr, sizeof(*res_timespec));
 
+    if (clk_id == 66666) {
+      clock_gettime(CLOCK_MONOTONIC, res_timespec);
+      return (SysCallReturn){.state = SYSCALL_DONE, .retval.as_i64 = 0};
+    }
+
     EmulatedTime now = _syscallhandler_getEmulatedTime();
     res_timespec->tv_sec = now / SIMTIME_ONE_SECOND;
     res_timespec->tv_nsec = now % SIMTIME_ONE_SECOND;

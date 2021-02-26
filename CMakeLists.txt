@@ -136,7 +136,7 @@ add_compile_options(-ggdb)
 add_compile_options(-fno-omit-frame-pointer)
 
 message(STATUS "Found CMAKE_BUILD_TYPE='$ENV{CMAKE_BUILD_TYPE}'")
-if("$ENV{CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+if("$ENV{CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Debug build enabled.")
     set(CMAKE_BUILD_TYPE Debug)
     add_definitions(-DDEBUG)
