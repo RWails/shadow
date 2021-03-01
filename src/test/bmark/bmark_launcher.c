@@ -82,7 +82,7 @@ static void _print_error() {
  * the rest to the test.
  */
 static int _call_main_without_test_arg(pMainFn p_main, int argc, char **argv) {
-    assert(main && argc >= 2 && argv);
+    assert(p_main && argc >= 2 && argv);
 
     int retval = -1;
     char **argv_new = calloc(argc - 1, sizeof(char *));

@@ -15,7 +15,7 @@ asm_gettime:
   # BODY
   mov rax, 228 # sys_clock_gettime
   mov rsi, rdi # rsi points to struct timespec
-  mov rdi, 0 # CLOCK_REALTIME
+  mov rdi, 1 # CLOCK_MONOTONIC
   syscall
 
   # EPILOGUE
