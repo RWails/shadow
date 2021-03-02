@@ -139,7 +139,11 @@ int process_emu_listen(Process* proc, int fd, int n);
 int process_emu_accept(Process* proc, int fd, struct sockaddr* addr, socklen_t* addr_len);
 int process_emu_accept4(Process* proc, int fd, struct sockaddr* addr, socklen_t* addr_len, int flags);
 int process_emu_shutdown(Process* proc, int fd, int how);
+
 ssize_t process_emu_read(Process* proc, int fd, void *buff, size_t numbytes);
+ssize_t process_emu___GI___libc_read(Process* proc, int fd, void *buff, size_t numbytes);
+
+
 ssize_t process_emu_write(Process* proc, int fd, const void *buff, size_t n);
 ssize_t process_emu_readv(Process* proc, int fd, const struct iovec *iov, int iovcnt);
 ssize_t process_emu_writev(Process* proc, int fd, const struct iovec *iov, int iovcnt);

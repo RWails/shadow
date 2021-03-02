@@ -2650,6 +2650,10 @@ int process_emu_shutdown(Process* proc, int fd, int how) {
     return ret;
 }
 
+ssize_t process_emu___GI___libc_read(Process* proc, int fd, void *buff, size_t numbytes) {
+	return process_emu_read(proc, fd, buff, numbytes);
+}
+
 ssize_t process_emu_read(Process* proc, int fd, void *buff, size_t numbytes) {
     ProcessContext prevCTX = _process_changeContext(proc, proc->activeContext, PCTX_SHADOW);
     gssize ret = 0;

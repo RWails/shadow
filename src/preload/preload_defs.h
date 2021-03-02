@@ -44,6 +44,7 @@ PRELOADDEF(return, int, accept, (int a, struct sockaddr* b, socklen_t* c), a, b,
 PRELOADDEF(return, int, accept4, (int a, struct sockaddr* b, socklen_t* c, int d), a, b, c, d);
 PRELOADDEF(return, int, shutdown, (int a, int b), a, b);
 PRELOADDEF(return, ssize_t, read, (int a, void *b, size_t c), a, b, c);
+PRELOADDEF(return, ssize_t, __GI___libc_read, (int a, void *b, size_t c), a, b, c);
 PRELOADDEF(return, ssize_t, write, (int a, const void *b, size_t c), a, b, c);
 PRELOADDEF(return, ssize_t, readv, (int a, const struct iovec *b, int c), a, b, c);
 PRELOADDEF(return, ssize_t, writev, (int a, const struct iovec *b, int c), a, b, c);
