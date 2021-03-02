@@ -18,6 +18,28 @@ pub struct _GTimer {
     _unused: [u8; 0],
 }
 pub type GTimer = _GTimer;
+pub use self::_LogLevel as LogLevel;
+pub const _LogLevel_LOGLEVEL_UNSET: _LogLevel = 0;
+pub const _LogLevel_LOGLEVEL_ERROR: _LogLevel = 1;
+pub const _LogLevel_LOGLEVEL_CRITICAL: _LogLevel = 2;
+pub const _LogLevel_LOGLEVEL_WARNING: _LogLevel = 3;
+pub const _LogLevel_LOGLEVEL_MESSAGE: _LogLevel = 4;
+pub const _LogLevel_LOGLEVEL_INFO: _LogLevel = 5;
+pub const _LogLevel_LOGLEVEL_DEBUG: _LogLevel = 6;
+pub const _LogLevel_LOGLEVEL_TRACE: _LogLevel = 7;
+pub type _LogLevel = i32;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _ShadowLogger {
+    _unused: [u8; 0],
+}
+pub type ShadowLogger = _ShadowLogger;
+extern "C" {
+    pub fn shadow_logger_getDefault() -> *mut ShadowLogger;
+}
+extern "C" {
+    pub fn shadow_logger_shouldFilter(logger: *mut ShadowLogger, level: LogLevel) -> bool;
+}
 pub use self::_Status as Status;
 pub const _Status_STATUS_NONE: _Status = 0;
 pub const _Status_STATUS_DESCRIPTOR_ACTIVE: _Status = 1;
@@ -541,11 +563,18 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct _Epoll {
+    _unused: [u8; 0],
+}
+pub type Epoll = _Epoll;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct _SysCallHandler {
     pub host: *mut Host,
     pub process: *mut Process,
     pub thread: *mut Thread,
     pub timer: *mut Timer,
+    pub epoll: *mut Epoll,
     pub blockedSyscallNR: ::std::os::raw::c_long,
     pub perfTimer: *mut GTimer,
     pub perfSecondsCurrent: gdouble,
@@ -557,7 +586,7 @@ pub struct _SysCallHandler {
 fn bindgen_test_layout__SysCallHandler() {
     assert_eq!(
         ::std::mem::size_of::<_SysCallHandler>(),
-        80usize,
+        88usize,
         concat!("Size of: ", stringify!(_SysCallHandler))
     );
     assert_eq!(
@@ -606,10 +635,20 @@ fn bindgen_test_layout__SysCallHandler() {
         )
     );
     assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_SysCallHandler>())).epoll as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_SysCallHandler),
+            "::",
+            stringify!(epoll)
+        )
+    );
+    assert_eq!(
         unsafe {
             &(*(::std::ptr::null::<_SysCallHandler>())).blockedSyscallNR as *const _ as usize
         },
-        32usize,
+        40usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -619,7 +658,7 @@ fn bindgen_test_layout__SysCallHandler() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_SysCallHandler>())).perfTimer as *const _ as usize },
-        40usize,
+        48usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -631,7 +670,7 @@ fn bindgen_test_layout__SysCallHandler() {
         unsafe {
             &(*(::std::ptr::null::<_SysCallHandler>())).perfSecondsCurrent as *const _ as usize
         },
-        48usize,
+        56usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -643,7 +682,7 @@ fn bindgen_test_layout__SysCallHandler() {
         unsafe {
             &(*(::std::ptr::null::<_SysCallHandler>())).perfSecondsTotal as *const _ as usize
         },
-        56usize,
+        64usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -653,7 +692,7 @@ fn bindgen_test_layout__SysCallHandler() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_SysCallHandler>())).numSyscalls as *const _ as usize },
-        64usize,
+        72usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -663,7 +702,7 @@ fn bindgen_test_layout__SysCallHandler() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_SysCallHandler>())).referenceCount as *const _ as usize },
-        72usize,
+        80usize,
         concat!(
             "Offset of field: ",
             stringify!(_SysCallHandler),
@@ -683,6 +722,12 @@ extern "C" {
 }
 extern "C" {
     pub fn syscallhandler_getpid(
+        sys: *mut SysCallHandler,
+        args: *const SysCallArgs,
+    ) -> SysCallReturn;
+}
+extern "C" {
+    pub fn syscallhandler_getppid(
         sys: *mut SysCallHandler,
         args: *const SysCallArgs,
     ) -> SysCallReturn;

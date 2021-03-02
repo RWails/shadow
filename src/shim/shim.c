@@ -77,16 +77,18 @@ static void _set_interpose_type() {
 
     const char* interpose_method = getenv("SHADOW_INTERPOSE_METHOD");
     assert(interpose_method);
-    if (!strcmp(interpose_method, "PRELOAD_ONLY")) {
+    if (!strcmp(interpose_method, "PRELOAD")) {
+        // Uses library preloading to intercept syscalls.
         _using_interpose_preload = true;
         return;
     }
-    if (!strcmp(interpose_method, "PRELOAD_PTRACE")) {
+    if (!strcmp(interpose_method, "HYBRID")) {
+        // Uses library preloading to intercept syscalls, with a ptrace backstop.
         _using_interpose_preload = true;
         _using_interpose_ptrace = true;
         return;
     }
-    if (!strcmp(interpose_method, "PTRACE_ONLY")) {
+    if (!strcmp(interpose_method, "PTRACE")) {
         // From the shim's point of view, behave as if it's not running under
         // Shadow, and let all control happen via ptrace.
         _using_interpose_ptrace = true;
@@ -125,10 +127,6 @@ static void _verify_parent_pid_or_exit() {
 }
 
 static void _shim_load() {
-    // We ultimately want to log to SHADOW_LOG_FILE, but first we redirect to
-    // stderr for any log messages that happen before we can open it.
-    logger_setDefault(shimlogger_new(stderr));
-
     if (!_using_interpose_preload) {
         return;
     }

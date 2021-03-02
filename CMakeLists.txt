@@ -126,6 +126,8 @@ MESSAGE(STATUS "SHADOW_PROFILE=${SHADOW_PROFILE}")
 MESSAGE(STATUS "SHADOW_TEST=${SHADOW_TEST}")
 MESSAGE(STATUS "SHADOW_EXPORT=${SHADOW_EXPORT}")
 MESSAGE(STATUS "SHADOW_WERROR=${SHADOW_WERROR}")
+MESSAGE(STATUS "SHADOW_COVERAGE=${SHADOW_COVERAGE}")
+MESSAGE(STATUS "SHADOW_USE_C_SYSCALLS=${SHADOW_USE_C_SYSCALLS}")
 MESSAGE(STATUS "-------------------------------------------------------------------------------")
 MESSAGE(STATUS)
 
@@ -156,6 +158,7 @@ endif(SHADOW_WERROR STREQUAL ON)
 
 if(SHADOW_COVERAGE STREQUAL ON)
     add_compile_options(--coverage)
+    add_definitions(-DSHADOW_COVERAGE)
     add_ldflags(--coverage)
     ## from https://github.com/mozilla/grcov
     set(RUSTFLAGS "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code \

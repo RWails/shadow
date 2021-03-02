@@ -85,6 +85,10 @@ const char* logger_base_name(const char* filename) {
     return rv;
 }
 
+void _logger_default_flush() {
+    fflush(stderr);
+}
+
 static void _logger_default_log(LogLevel level, const char* fileName, const char* functionName,
                                 const int lineNumber, const char* format, va_list vargs) {
     static __thread bool in_logger = false;
@@ -92,6 +96,11 @@ static void _logger_default_log(LogLevel level, const char* fileName, const char
         // Avoid recursing. We do this here rather than in logger_log so that
         // specialized loggers could potentially do something better than just
         // dropping the message.
+        return;
+    }
+    // This logger is used only when a logger has not been set yet. In this case, we only log
+    // at a severity level of warning or more severe than warning.
+    if (level > LOGLEVEL_WARNING) {
         return;
     }
     in_logger = true;
@@ -111,12 +120,12 @@ static void _logger_default_log(LogLevel level, const char* fileName, const char
     offset += vsnprintf(&buf[offset], sizeof(buf) - offset, format, vargs);
     offset = MIN(offset, sizeof(buf));
 
-    offset += printf("%s\n", buf);
+    offset += fprintf(stderr, "%s\n", buf);
     offset = MIN(offset, sizeof(buf));
 
 #ifdef DEBUG
     if (level == LOGLEVEL_ERROR) {
-        fflush(stdout);
+        _logger_default_flush();
         abort();
     }
 #endif
@@ -136,4 +145,12 @@ void logger_log(Logger* logger, LogLevel level, const gchar* fileName,
                     vargs);
     }
     va_end(vargs);
+}
+
+void logger_flush(Logger* logger) {
+    if (!logger) {
+        _logger_default_flush();
+    } else {
+        logger->flush(logger);
+    }
 }

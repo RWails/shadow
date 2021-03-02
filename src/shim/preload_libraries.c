@@ -49,6 +49,18 @@ unsigned int sleep(unsigned int seconds) {
     return rem.tv_sec;
 }
 
+// man send
+ssize_t send(int sockfd, const void* buf, size_t len, int flags) {
+    // An equivalent syscall is available
+    return sendto(sockfd, buf, len, flags, NULL, 0);
+}
+
+// man recv
+ssize_t recv(int sockfd, void* buf, size_t len, int flags) {
+    // An equivalent syscall is available
+    return recvfrom(sockfd, buf, len, flags, NULL, NULL);
+}
+
 // Sets `port` to the port specified by `service`, according to the criteria in
 // getaddrinfo(3). Returns 0 on success or the appropriate getaddrinfo error on
 // failure.
@@ -445,44 +457,6 @@ int gethostname(char* name, size_t len) {
     return 0;
 }
 
-static void _delete_file_on_exit(int status, void* filename) {
-    if (unlink(filename) != 0) {
-        debug("unlink %s failed: %s", (char*)filename, strerror(errno));
-    }
-    // don't free `filename`. This could end up getting called multiple times
-    // in case of a fork; better to not risk a double-free.
-}
-
-FILE *tmpfile(void) {
-    FILE *rv = NULL;
-
-    char *name = malloc(L_tmpnam);
-    if (tmpnam(name) != name) {
-        debug("tmpnam failed");
-        goto out;
-    }
-    
-    FILE* temp = fopen(name, "w+");
-    if (temp == NULL) {
-        debug("fopen failed: %s", strerror(errno));
-        goto out;
-    }
-
-    // FIXME: Workaround for https://github.com/shadow/shadow/issues/852.
-    // Rather than immediately unlinking the file, we arrange for it to be
-    // unlinked at exit.
-    rv = temp;
-    if (on_exit(_delete_file_on_exit, name) != 0) {
-        debug("on_exit failed: %s", strerror(errno));
-    }
-    name = NULL;
-
-  out:
-    if (name)
-        free(name);
-    return rv;
-}
-
 static void _convert_stat_to_stat64(struct stat* s, struct stat64* s64) {
     memset(s64, 0, sizeof(*s64));
 
@@ -626,4 +600,16 @@ void freeifaddrs(struct ifaddrs* ifa) {
         free(iter);
         iter = next;
     }
+}
+
+// man 3 localtime
+struct tm* localtime(const time_t* timep) {
+    // Return time relative to UTC rather than the locale where shadow is being run.
+    return gmtime(timep);
+}
+
+// man 3 localtime_r
+struct tm* localtime_r(const time_t* timep, struct tm* result) {
+    // Return time relative to UTC rather than the locale where shadow is being run.
+    return gmtime_r(timep, result);
 }

@@ -1,5 +1,7 @@
-use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
+use crate::cshadow as c;
 use log_bindings as c_log;
+
+use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::{ffi, fmt};
 
 static LOGGER: ShadowLogger = ShadowLogger {};
@@ -21,6 +23,10 @@ impl Log for ShadowLogger {
             Level::Trace => c_log::_LogLevel_LOGLEVEL_TRACE,
         };
 
+        if unsafe { c::shadow_logger_shouldFilter(c::shadow_logger_getDefault(), log_level) } {
+            return;
+        }
+
         // allocate null-terminated strings
         let file = ffi::CString::new(record.file().unwrap_or("<none>")).unwrap();
         let module_path = ffi::CString::new(record.module_path().unwrap_or("<none>")).unwrap();
@@ -41,7 +47,9 @@ impl Log for ShadowLogger {
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        unsafe { c_log::logger_flush(c_log::logger_getDefault()) };
+    }
 }
 
 /// Initialize a logger which uses Shadow's C logging interface.
