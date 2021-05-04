@@ -333,7 +333,11 @@ gboolean socket_addToInputBuffer(Socket* socket, Packet* packet) {
 
     /* check if the packet fits */
     guint length = packet_getPayloadLength(packet);
-    if(length > socket_getInputBufferSpace(socket)) {
+
+    // If we're bootstrapping, we'll use infinite socket buffer sizes.
+    bool bootstrapping = (bool)worker_isBootstrapActive();
+
+    if(!bootstrapping && length > socket_getInputBufferSpace(socket)) {
         return FALSE;
     }
 
@@ -401,9 +405,13 @@ gsize _socket_getOutputBufferSpaceIncludingTCP(Socket* socket) {
 gboolean socket_addToOutputBuffer(Socket* socket, Packet* packet) {
     MAGIC_ASSERT(socket);
 
+    // If we're bootstrapping, we'll use infinite socket buffer sizes.
+    bool bootstrapping = (bool)worker_isBootstrapActive();
+
     /* check if the packet fits */
+
     guint length = packet_getPayloadLength(packet);
-    if(length > socket_getOutputBufferSpace(socket)) {
+    if(!bootstrapping && length > socket_getOutputBufferSpace(socket)) {
         return FALSE;
     }
 
